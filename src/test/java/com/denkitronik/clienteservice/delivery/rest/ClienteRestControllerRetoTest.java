@@ -143,11 +143,70 @@ class ClienteRestControllerRetoTest {
            .andExpect(jsonPath("$.mensaje").value("Cliente con id 999 no encontrado"));
     }
 
+    @Test
+    void putInvalido_responde400() throws Exception {
+        String body = """
+            {"nombre":"","apellido":"","email":"no-email","foto":""}
+            """;
+        mvc.perform(put(BASE + "/1").contentType(MediaType.APPLICATION_JSON).content(body))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.errors").isArray());
+    }
+
+    @Test
+    void putEmailDuplicado_responde500Generico() throws Exception {
+        String body = """
+            {"nombre":"Linus","apellido":"Torvalds","email":"james@java.com","foto":"linus.jpg"}
+            """;
+        mvc.perform(put(BASE + "/1").contentType(MediaType.APPLICATION_JSON).content(body))
+           .andExpect(status().isInternalServerError())
+           .andExpect(jsonPath("$.status").value(500))
+           .andExpect(jsonPath("$.mensaje").value("Error interno del servidor. Por favor intenta más tarde."));
+    }
+
+    // ── Listados ──────────────────────────────────────────────
+    @Test
+    void listarClientes_responde200() throws Exception {
+        mvc.perform(get(BASE))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(12));
+    }
+
+    @Test
+    void listarRegiones_responde200() throws Exception {
+        mvc.perform(get(BASE + "/regiones"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(8));
+    }
+
     // ── Paginación ────────────────────────────────────────────
     @Test
     void paginaCero_traeCuatroClientes() throws Exception {
         mvc.perform(get(BASE + "/page/0"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.content.length()").value(4));
+    }
+
+    // ── Errores de petición ───────────────────────────────────
+    @Test
+    void idNoNumerico_responde400() throws Exception {
+        mvc.perform(get(BASE + "/abc"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.status").value(400))
+           .andExpect(jsonPath("$.mensaje").value("El parámetro 'id' tiene un valor inválido"));
+    }
+
+    @Test
+    void jsonMalFormado_responde400() throws Exception {
+        mvc.perform(post(BASE).contentType(MediaType.APPLICATION_JSON).content("{nombre:"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.mensaje").value("El cuerpo de la petición no es un JSON válido"));
+    }
+
+    @Test
+    void metodoNoPermitido_responde405() throws Exception {
+        mvc.perform(patch(BASE + "/1"))
+           .andExpect(status().isMethodNotAllowed())
+           .andExpect(jsonPath("$.status").value(405));
     }
 }
